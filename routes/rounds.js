@@ -16,6 +16,7 @@ let roundNonce = 0;
 let currentRound = null;
 
 
+
 router.get('/current', async (req, res) => {
 try {
 if (!currentRound) {
