@@ -96,3 +96,9 @@ delete params.hash;
 const dataCheckString = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('\n');
 app.listen(PORT, () => console.log('Server listening on', PORT));
 }
+const PORT = process.env.PORT || 3000;
+
+// 2. Запустіть сервер
+app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+});
