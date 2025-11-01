@@ -1,4 +1,4 @@
-import { pool } from '../db.js';
+import { pool } from '../db/db';
 
 const GAME_ANGLES = [1, 2, 3, 4, 5];
 
