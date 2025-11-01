@@ -1,21 +1,16 @@
-// utils/telegramAuth.js
-import crypto from "crypto";
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
-export function verifyTelegramAuth(initData, botToken) {
-  const secret = crypto.createHash("sha256").update(botToken).digest();
-  const data = new URLSearchParams(initData);
-  const hash = data.get("hash");
-  data.delete("hash");
+export function checkTelegramAuth(data) {
+  const { hash, ...userData } = data;
+  const secretKey = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest();
 
-  const checkString = [...data.entries()]
-    .map(([key, value]) => `${key}=${value}`)
+  const dataCheckString = Object.keys(userData)
     .sort()
-    .join("\n");
+    .map(key => `${key}=${userData[key]}`)
+    .join('\n');
 
-  const hmac = crypto
-    .createHmac("sha256", secret)
-    .update(checkString)
-    .digest("hex");
-
+  const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
   return hmac === hash;
 }
