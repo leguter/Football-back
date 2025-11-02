@@ -12,6 +12,7 @@ return crypto.randomBytes(32).toString('hex');
 }
 
 
+
 function hmacToR(seed, nonce) {
 const hmac = crypto.createHmac('sha256', seed);
 hmac.update(String(nonce));
