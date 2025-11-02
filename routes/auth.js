@@ -1,7 +1,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const db = require("../db"); // Your connection to PostgreSQL
+const db = require("../db"); // Ваш зв'язок з PostgreSQL
 
 const router = express.Router();
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // POST /api/auth
 router.post("/", async (req, res) => {
-  // 1. Get initData and the new referrerId from the request body
+  // 1. Отримуємо initData та referrerId з тіла запиту
   const { initData, referrerId } = req.body;
 
   if (!initData) {
@@ -17,7 +17,16 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    // --- 2. Validate Telegram initData ---
+    // --- 2. НОВА ПЕРЕВІРКА ---
+    // Додаємо чітку перевірку, чи завантажено BOT_TOKEN
+    if (!BOT_TOKEN) {
+      console.error("Auth error: BOT_TOKEN environment variable is not set.");
+      // Надсилаємо чітку помилку на фронтенд
+      return res.status(500).json({ message: "Server configuration error: Missing BOT_TOKEN" });
+    }
+    // --- Кінець нової перевірки ---
+
+    // --- 3. Валідація Telegram initData ---
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get("hash");
     if (!hash) {
@@ -30,6 +39,7 @@ router.post("/", async (req, res) => {
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
 
+    // Цей рядок (раніше 33) тепер безпечний, оскільки BOT_TOKEN перевірено
     const secretKey = crypto.createHmac("sha256", "WebAppData").update(BOT_TOKEN).digest();
     const calculatedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
@@ -37,15 +47,14 @@ router.post("/", async (req, res) => {
       return res.status(403).json({ message: "Authentication failed: Invalid hash" });
     }
 
-    // --- 3. Work with the user ---
+    // --- 4. Робота з користувачем ---
     const user = JSON.parse(urlParams.get("user"));
     const telegramId = user.id;
-    // We now use the 'referrerId' passed from the frontend, not 'start_param'
 
     let userResult = await db.query("SELECT * FROM users WHERE telegram_id = $1", [telegramId]);
 
     if (userResult.rows.length === 0) {
-      // New user
+      // Новий користувач
       const client = await db.connect();
       try {
         await client.query("BEGIN");
@@ -61,14 +70,14 @@ router.post("/", async (req, res) => {
           user.first_name,
           user.username,
           user.photo_url || null,
-          referrerId ? 2 : 0, // Bonus tickets on start if referred
-          referrerId || null, // Save the referrer
+          referrerId ? 2 : 0, // Бонусні квитки за реферала
+          referrerId || null, // Зберігаємо реферера
         ];
 
         const newUserResult = await client.query(newUserQuery, newUserValues);
         userResult = newUserResult;
 
-        // Grant bonus to the referrer
+        // Нарахування бонусу рефереру
         if (referrerId) {
           await client.query(
             `UPDATE users SET tickets = tickets + 2 WHERE telegram_id = $1`,
@@ -79,12 +88,12 @@ router.post("/", async (req, res) => {
         await client.query("COMMIT");
       } catch (err) {
         await client.query("ROLLBACK");
-        throw err; // Re-throw error to be caught by the outer catch block
+        throw err; // Помилка буде оброблена зовнішнім catch
       } finally {
         client.release();
       }
     } else {
-      // Existing user
+      // Існуючий користувач
       userResult = await db.query(
         `UPDATE users SET last_login_at = NOW(), photo_url = $1 WHERE telegram_id = $2 RETURNING *`,
         [user.photo_url || userResult.rows[0].photo_url, telegramId]
@@ -93,10 +102,10 @@ router.post("/", async (req, res) => {
 
     const finalUser = userResult.rows[0];
 
-    // --- 4. Generate JWT ---
+    // --- 5. Генерація JWT ---
     const token = jwt.sign({ telegramId: finalUser.telegram_id }, JWT_SECRET, { expiresIn: "7d" });
 
-    // Respond to the frontend
+    // Відповідь фронтенду
     res.json({
       message: "Authenticated successfully",
       token,
@@ -119,3 +128,4 @@ router.post("/", async (req, res) => {
 });
 
 module.exports = router;
+
