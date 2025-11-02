@@ -24,6 +24,7 @@ return num / denom;
 }
 
 
+
 function computeMultiplier(r, houseEdge = 0.03, maxMultiplier = 1000) {
 const safeR = Math.min(1 - 1e-12, Math.max(0, r));
 const mult = ((1 - houseEdge) / (1 - safeR));
