@@ -1,20 +1,27 @@
 const express = require('express');
-const cors = require('cors');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const dotenv = require('dotenv');
-const authRoutes = require('./routes/auth');
-const gameRoutes = require('./routes/game');
-const { errorHandler } = require('./middleware/errorHandler');
 
 dotenv.config();
-
 const app = express();
+
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(bodyParser.json());
 
+// ✅ Імпортуємо маршрути
+const authRoutes = require('./routes/auth');
+const gameRoutes = require('./routes/game');
+
+// ✅ Підключаємо маршрути
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
-app.use(errorHandler);
+
+// ✅ Централізована обробка помилок
+app.use((err, req, res, next) => {
+  console.error('Error:', err.stack);
+  res.status(500).json({ message: 'Server error' });
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
