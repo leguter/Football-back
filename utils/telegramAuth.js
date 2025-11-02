@@ -1,10 +1,10 @@
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-dotenv.config();
+// /utils/telegramAuth.js (CommonJS)
+const crypto = require('crypto');
+require('dotenv').config();
 
-export function checkTelegramAuth(data) {
+function checkTelegramAuth(data = {}) {
   const { hash, ...userData } = data;
-  const secretKey = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest();
+  const secretKey = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN || '').digest();
 
   const dataCheckString = Object.keys(userData)
     .sort()
@@ -14,3 +14,5 @@ export function checkTelegramAuth(data) {
   const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
   return hmac === hash;
 }
+
+module.exports = { checkTelegramAuth };

@@ -1,6 +1,7 @@
-import express from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
-import { startGame, shoot, cashout } from '../services/gameService.js';
+// /routes/game.js (CommonJS)
+const express = require('express');
+const authMiddleware = require('../middleware/authMiddleware');
+const { startGame, shoot, cashout } = require('../services/gameService');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -35,4 +36,4 @@ router.post('/cashout', async (req, res, next) => {
   }
 });
 
-export default router;
+module.exports = router;

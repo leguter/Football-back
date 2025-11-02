@@ -1,24 +1,31 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
-import gameRoutes from './routes/game.js';
-import { errorHandler } from './middleware/errorHandler.js';
+// server.js (CommonJS)
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
-dotenv.config();
+const authRoutes = require('./routes/auth');
+const gameRoutes = require('./routes/game');
+const errorHandler = require('./middleware/errorHandler');
+
 const app = express();
 
-// CORS для фронтенда
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
-app.use(bodyParser.json());
+// CORS
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET','POST'],
+  credentials: true,
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 
-// Централізований обробник помилок
+// error handler
 app.use(errorHandler);
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on http://localhost:${process.env.PORT}`);
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

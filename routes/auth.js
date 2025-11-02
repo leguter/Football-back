@@ -1,13 +1,13 @@
-import express from 'express';
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-import { checkTelegramAuth } from '../utils/telegramAuth.js';
-dotenv.config();
+// /routes/auth.js (CommonJS)
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const { checkTelegramAuth } = require('../utils/telegramAuth');
+require('dotenv').config();
 
 const router = express.Router();
 
 router.post('/login', (req, res) => {
-  const data = req.body;
+  const data = req.body || {};
 
   if (!checkTelegramAuth(data)) {
     return res.status(401).json({ success: false, error: 'Invalid Telegram data' });
@@ -22,4 +22,4 @@ router.post('/login', (req, res) => {
   res.json({ success: true, data: { token } });
 });
 
-export default router;
+module.exports = router;
