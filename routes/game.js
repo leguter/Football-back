@@ -55,7 +55,7 @@ router.post('/start', async (req, res) => {
     await pool.query(`UPDATE users SET balance = balance - $1 WHERE telegram_id=$2`, [stake, telegramId]);
 
 
-    
+
     // Створюємо або оновлюємо гру
     await pool.query(
       `INSERT INTO games(user_id, stake, multiplier, last_result, is_shooting, updated_at)
@@ -99,9 +99,10 @@ router.post('/shoot', async (req, res) => {
     const isGoal = keeperAngleId !== angleId;
 
     // 🔹 Якщо забив — росте множник, інакше скидається
-    const newMultiplier = isGoal
-      ? +(game.multiplier + (0.4 + Math.random() * 0.3)).toFixed(2)
-      : 1.0;
+   const currentMultiplier = parseFloat(game.multiplier) || 1.0;
+const newMultiplier = isGoal
+  ? +(currentMultiplier + (0.4 + Math.random() * 0.3)).toFixed(2)
+  : 1.0;
 
     await pool.query(
       `UPDATE games
