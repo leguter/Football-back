@@ -54,6 +54,8 @@ router.post('/start', async (req, res) => {
     // Віднімаємо ставку
     await pool.query(`UPDATE users SET balance = balance - $1 WHERE telegram_id=$2`, [stake, telegramId]);
 
+
+    
     // Створюємо або оновлюємо гру
     await pool.query(
       `INSERT INTO games(user_id, stake, multiplier, last_result, is_shooting, updated_at)
