@@ -12,11 +12,11 @@ app.use(bodyParser.json());
 // ✅ Імпортуємо маршрути
 const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
-
+const depositRouter = require("./routes/deposit");
 // ✅ Підключаємо маршрути
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
-
+app.use('/api/deposite', depositRouter);
 // ✅ Централізована обробка помилок
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
