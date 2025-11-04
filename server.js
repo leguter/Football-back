@@ -6,15 +6,30 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 
+
+app.use(express.json());
+
 app.use(cors({
-  origin: "https://tg-football.vercel.app", // 👈 твій фронт
-  credentials: true, // 👈 обов’язково!
+  origin: "https://tg-football.vercel.app", // 👈 твій фронтенд
+  credentials: true, // 👈 дозволяємо cookies / credentials
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-telegram-user" // 👈 ДОДАЛИ ЦЕ
+  ]
 }));
 
-// Якщо використовуєш cookie-сесію або JWT через cookie
-app.set("trust proxy", 1);
+// Обов’язково додай preflight для Render
+app.options("*", cors({
+  origin: "https://tg-football.vercel.app",
+  credentials: true,
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-telegram-user"
+  ]
+}));
 app.use(bodyParser.json());
 
 // ✅ Імпортуємо маршрути
