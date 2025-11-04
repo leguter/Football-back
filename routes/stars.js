@@ -155,7 +155,7 @@ router.post("/complete", authMiddleware, async (req, res) => {
     // === 🟢 ГОЛОВНЕ ВИПРАВЛЕННЯ ТУТ 🟢 ===
     // Ми оновлюємо баланс і одразу просимо БД повернути нове (оновлене) значення
     const updateRes = await db.query(
-      "UPDATE users SET balance = balance + $1 WHERE telegram_id = $2 RETURNING internal_stars",
+      "UPDATE users SET balance = balance + $1 WHERE telegram_id = $2 RETURNING balance",
       [totalStars, telegramId]
     );
 
