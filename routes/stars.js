@@ -160,7 +160,7 @@ router.post("/complete", authMiddleware, async (req, res) => {
     );
 
     // Отримуємо актуальний загальний баланс з відповіді БД
-    const newTotalBalance = updateRes.rows[0].internal_stars;
+    const newTotalBalance = updateRes.rows[0].balance;
 
     // Зберігаємо історію поповнення
     await db.query(
@@ -169,7 +169,7 @@ router.post("/complete", authMiddleware, async (req, res) => {
     );
 
     // Повертаємо на фронтенд новий ЗАГАЛЬНИЙ баланс
-    res.json({ success: true, internal_stars: newTotalBalance });
+    res.json({ success: true, balance: newTotalBalance });
   } catch (err) {
     console.error("Complete deposit error:", err);
     res.status(500).json({ success: false, message: "Server error" });
