@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 // ✅ Імпортуємо маршрути
 const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
-const depositRouters = require("./routes/deposit");
+const depositRouters = require("./routes/stars");
 // ✅ Підключаємо маршрути
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
