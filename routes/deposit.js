@@ -1,6 +1,6 @@
 const express = require("express");
 const db = require("../db");
-const authMiddleware = require("../middleware/auth");
+const authMiddleware = require("../middleware/authMiddleware");
 const axios = require("axios");
 
 const router = express.Router();
