@@ -16,7 +16,7 @@ const depositRouter = require("./routes/deposit");
 // ✅ Підключаємо маршрути
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
-app.use('/api/deposite', depositRouter);
+app.use('/api/deposit', depositRouter);
 // ✅ Централізована обробка помилок
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
