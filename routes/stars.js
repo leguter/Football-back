@@ -52,15 +52,15 @@ router.use(authMiddleware);
 // // ==============================
 // router.post("/deposit/complete", async (req, res) => {
 //   try {
-//     const { telegramId } = req.user;
-//     const { payload } = req.body;
+    // const { telegramId } = req.user;
+    // const { payload } = req.body;
 
-//     if (!payload)
-//       return res.status(400).json({ success: false, message: "Payload missing" });
+    // if (!payload)
+    //   return res.status(400).json({ success: false, message: "Payload missing" });
 
-//     // payload: deposit_<telegramId>_<amount>_<timestamp>
-//     const [, , amountStr] = payload.split("_");
-//     const amount = parseInt(amountStr, 10);
+    // // payload: deposit_<telegramId>_<amount>_<timestamp>
+    // const [, , amountStr] = payload.split("_");
+    // const amount = parseInt(amountStr, 10);
 
 //     // 🔹 Просто додаємо зірки без бонусів
 //     const updateRes = await db.query(
@@ -139,7 +139,7 @@ router.post("/complete", authMiddleware, async (req, res) => {
     const amount = parseInt(amountStr, 10);
 
     // Розрахунок бонусів для першого депозиту
-    // let bonus = 0;
+    let bonus = 0;
     // if (amount === 100) ;
     // else if (amount === 500) bonus = 100;
     // else if (amount === 1000) bonus = 300;
