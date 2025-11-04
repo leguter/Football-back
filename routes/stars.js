@@ -178,51 +178,51 @@ router.post("/complete", authMiddleware, async (req, res) => {
 // ==============================
 // 💸 Вивід зірок
 // ==============================
-router.post("/withdraw", async (req, res) => {
-  try {
-    const { telegramId } = req.user;
-    const { amount } = req.body;
+// router.post("/withdraw", async (req, res) => {
+//   try {
+//     const { telegramId } = req.user;
+//     const { amount } = req.body;
 
-    if (!amount || amount <= 0)
-      return res.status(400).json({ success: false, message: "Invalid amount" });
+//     if (!amount || amount <= 0)
+//       return res.status(400).json({ success: false, message: "Invalid amount" });
 
-    const userRes = await db.query(
-      "SELECT balance FROM users WHERE telegram_id = $1",
-      [telegramId]
-    );
-    const currentBalance = userRes.rows[0]?.internal_stars || 0;
+//     const userRes = await db.query(
+//       "SELECT balance FROM users WHERE telegram_id = $1",
+//       [telegramId]
+//     );
+//     const currentBalance = userRes.rows[0]?.balance || 0;
 
-    if (currentBalance < amount)
-      return res
-        .status(400)
-        .json({ success: false, message: "Недостатньо зірок для виводу" });
+//     if (currentBalance < amount)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Недостатньо зірок для виводу" });
 
-    // Створюємо заявку на вивід
-    await db.query(
-      "INSERT INTO withdrawals (telegram_id, amount, status) VALUES ($1, $2, $3)",
-      [telegramId, amount, "pending"]
-    );
+//     // Створюємо заявку на вивід
+//     await db.query(
+//       "INSERT INTO withdrawals (telegram_id, amount, status) VALUES ($1, $2, $3)",
+//       [telegramId, amount, "pending"]
+//     );
 
-    // Зменшуємо баланс
-    const updateRes = await db.query(
-      "UPDATE users SET balance = balance - $1 WHERE telegram_id = $2 RETURNING internal_stars",
-      [amount, telegramId]
-    );
+//     // Зменшуємо баланс
+//     const updateRes = await db.query(
+//       "UPDATE users SET balance = balance - $1 WHERE telegram_id = $2 RETURNING internal_stars",
+//       [amount, telegramId]
+//     );
 
-    const newBalance = updateRes.rows[0].internal_stars;
+//     const newBalance = updateRes.rows[0].balance;
 
-    // Повідомлення користувачу
-    const botToken = process.env.BOT_TOKEN;
-    await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      chat_id: telegramId,
-      text: `💸 Ваш запит на вивід ${amount}⭐ отримано! Очікуйте підтвердження.`,
-    });
+//     // Повідомлення користувачу
+//     const botToken = process.env.BOT_TOKEN;
+//     await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+//       chat_id: telegramId,
+//       text: `💸 Ваш запит на вивід ${amount}⭐ отримано! Очікуйте підтвердження.`,
+//     });
 
-    res.json({ success: true, internal_stars: newBalance });
-  } catch (err) {
-    console.error("Withdraw error:", err.response?.data || err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+//     res.json({ success: true, balance: newBalance });
+//   } catch (err) {
+//     console.error("Withdraw error:", err.response?.data || err.message);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// });
 
 module.exports = router;
