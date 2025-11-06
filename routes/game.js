@@ -16,47 +16,28 @@ function extractTelegramId(initData) {
 }
 
 // ✅ Старт гри або ресет
-router.post('/start', async (req, res) => {
+router.post("/start", async (req, res) => {
   try {
     const { initData, stake = 100 } = req.body;
-    const params = new URLSearchParams(initData);
-    const userData = JSON.parse(params.get('user'));
-    const telegramId = userData?.id;
+    const telegramId = extractTelegramId(initData);
+    if (!telegramId) return res.status(400).json({ message: "Invalid initData" });
 
-    if (!telegramId) return res.status(400).json({ message: 'Invalid initData' });
-
-    const userRes = await pool.query(`SELECT * FROM users WHERE telegram_id=$1`, [telegramId]);
-    const user = userRes.rows[0];
+    const userRes = await pool.query("SELECT * FROM users WHERE telegram_id=$1", [telegramId]);
+    let user = userRes.rows[0];
 
     if (!user) {
-      // Створюємо нового користувача з даними з Telegram
       await pool.query(
-        `INSERT INTO users(
-          telegram_id,
-          first_name,
-          username,
-          photo_url,
-          balance,
-          created_at,
-          updated_at
-        ) VALUES($1,$2,$3,$4,1000,NOW(),NOW())`,
-        [
-          telegramId,
-          userData.first_name || '',
-          userData.username || null,
-          userData.photo_url || null
-        ]
+        `INSERT INTO users(telegram_id, balance, created_at, updated_at)
+         VALUES($1, 1000, NOW(), NOW())`,
+        [telegramId]
       );
+      user = { balance: 1000 };
     } else if (user.balance < stake) {
-      return res.status(400).json({ message: 'Недостатньо зірок для ставки' });
+      return res.status(400).json({ message: "Недостатньо зірок для ставки" });
     }
 
-    // Віднімаємо ставку
-    await pool.query(`UPDATE users SET balance = balance - $1 WHERE telegram_id=$2`, [stake, telegramId]);
+    await pool.query("UPDATE users SET balance = balance - $1 WHERE telegram_id=$2", [stake, telegramId]);
 
-
-
-    // Створюємо або оновлюємо гру
     await pool.query(
       `INSERT INTO games(user_id, stake, multiplier, last_result, is_shooting, updated_at)
        VALUES($1, $2, 1.0, NULL, FALSE, NOW())
@@ -65,13 +46,20 @@ router.post('/start', async (req, res) => {
       [telegramId, stake]
     );
 
-    const updatedUser = await pool.query(`SELECT balance FROM users WHERE telegram_id=$1`, [telegramId]);
-    res.json({ balance: updatedUser.rows[0].balance, stake, multiplier: 1.0 });
+    const updated = await pool.query("SELECT balance FROM users WHERE telegram_id=$1", [telegramId]);
+
+    return res.json({
+      success: true,
+      balance: updated.rows[0].balance,
+      multiplier: 1.0,
+      stake,
+    });
   } catch (err) {
-    console.error('❌ startGame error:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error("❌ startGame error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 // ✅ Удар
