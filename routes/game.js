@@ -5,6 +5,8 @@ const pool = require('../db');
 const GAME_ANGLES = [1, 2, 3, 4, 5];
 
 // ✅ Витягує telegram_id з initData (перевірку робить фронт)
+console.log("🧾 RAW initData:", initData);
+
 function extractTelegramId(initData) {
   try {
     const params = new URLSearchParams(initData);
