@@ -67,13 +67,15 @@ router.post("/start", async (req, res) => {
 // ✅ Удар
 router.post('/shoot', async (req, res) => {
   try {
+    console.log("📥 SHOOT BODY:", req.body);
     const { initData, angleId } = req.body;
     const telegramId = extractTelegramId(initData);
-    if (!telegramId || !angleId) return res.status(400).json({ message: 'Invalid data' });
+    console.log("📤 Parsed telegramId:", telegramId);
 
-    const gameRes = await pool.query(`SELECT * FROM games WHERE user_id=$1`, [telegramId]);
-    const game = gameRes.rows[0];
-    if (!game) return res.status(404).json({ message: 'Game not found' });
+    if (!telegramId || !angleId) {
+      console.warn("❌ Missing telegramId or angleId");
+      return res.status(400).json({ message: "Invalid data" });
+    }
 
     // 🔹 Шанс, що воротар здогадається
     const guessChance = Math.min(0.35 + (game.multiplier - 1.0) * 0.12, 0.9);
