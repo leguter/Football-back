@@ -2,67 +2,52 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../db");
 
+// --- Decode Telegram user data ---
 function extractTelegramId(initData) {
   try {
     const params = new URLSearchParams(initData);
     const rawUser = params.get("user");
     if (!rawUser) return null;
-
-    const decoded = decodeURIComponent(rawUser);
-    const user = JSON.parse(decoded);
+    const user = JSON.parse(decodeURIComponent(rawUser));
     return user.id;
-  } catch (e) {
-    console.error("extractTelegramId error:", e);
+  } catch (err) {
+    console.error("extractTelegramId error:", err);
     return null;
   }
 }
 
-async function getDbUser(telegramId) {
-  const res = await pool.query(
-    `SELECT id, balance FROM users WHERE telegram_id=$1`,
-    [telegramId]
-  );
-  return res.rows[0];
-}
-
-// ====================== START GAME ======================
+// --- Start Game ---
 router.post("/start", async (req, res) => {
   try {
     const { initData, stake = 100 } = req.body;
     const telegramId = extractTelegramId(initData);
 
     if (!telegramId)
-      return res.status(400).json({ success: false, message: "Invalid initData" });
+      return res.status(400).json({ message: "Invalid initData" });
 
-    let user = await getDbUser(telegramId);
+    const userRes = await pool.query(
+      "SELECT balance FROM users WHERE telegram_id=$1",
+      [telegramId]
+    );
+    const user = userRes.rows[0];
 
-    if (!user) {
-      const createRes = await pool.query(
-        `INSERT INTO users(telegram_id, balance, created_at, updated_at)
-         VALUES($1, 1000, NOW(), NOW())
-         RETURNING id, balance`,
-        [telegramId]
-      );
-      user = createRes.rows[0];
-    }
+    if (!user)
+      return res.status(404).json({ message: "User not found" });
 
     if (user.balance < stake)
-      return res.status(400).json({ success: false, message: "Недостатньо зірок" });
-
-    const userId = user.id;
+      return res.status(400).json({ message: "Недостатньо зірок" });
 
     await pool.query(
-      `UPDATE users SET balance=balance-$1, updated_at=NOW()
-       WHERE telegram_id=$2`,
+      "UPDATE users SET balance=balance-$1 WHERE telegram_id=$2",
       [stake, telegramId]
     );
 
     await pool.query(
       `INSERT INTO games(user_id, stake, multiplier, last_result, updated_at)
        VALUES($1, $2, 1.0, NULL, NOW())
-       ON CONFLICT(user_id)
+       ON CONFLICT (user_id)
        DO UPDATE SET stake=$2, multiplier=1.0, last_result=NULL, updated_at=NOW()`,
-      [userId, stake]
+      [telegramId, stake]
     );
 
     return res.json({
@@ -73,41 +58,39 @@ router.post("/start", async (req, res) => {
     });
   } catch (err) {
     console.error("start error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// ====================== SHOOT ======================
+// --- Shoot ---
 router.post("/shoot", async (req, res) => {
   try {
     const { initData, angleId } = req.body;
     const telegramId = extractTelegramId(initData);
 
     if (!telegramId || !angleId)
-      return res.status(400).json({ success: false, message: "Invalid data" });
-
-    const user = await getDbUser(telegramId);
-    if (!user)
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res.status(400).json({ message: "Invalid data" });
 
     const gameRes = await pool.query(
-      `SELECT * FROM games WHERE user_id=$1`,
-      [user.id]
+      "SELECT stake, multiplier FROM games WHERE user_id=$1",
+      [telegramId]
     );
     const game = gameRes.rows[0];
-
     if (!game)
-      return res.status(400).json({ success: false, message: "Game not found" });
+      return res.status(404).json({ message: "Game not found" });
 
-    const currentMultiplier = parseFloat(game.multiplier);
-    const guessChance = Math.min(0.35 + (currentMultiplier - 1.0) * 0.12, 0.9);
+    const currentMult = parseFloat(game.multiplier);
+    const guessChance = Math.min(0.35 + (currentMult - 1.0) * 0.12, 0.9);
     const willGuess = Math.random() < guessChance;
 
-    const keeperAngleId = willGuess ? angleId : Math.ceil(Math.random() * 5);
+    const keeperAngleId = willGuess
+      ? angleId
+      : Math.ceil(Math.random() * 5);
+
     const isGoal = keeperAngleId !== angleId;
 
     const newMultiplier = isGoal
-      ? +(currentMultiplier + (0.4 + Math.random() * 0.3)).toFixed(2)
+      ? +(currentMult + (0.4 + Math.random() * 0.3)).toFixed(2)
       : 1.0;
 
     await pool.query(
@@ -117,11 +100,11 @@ router.post("/shoot", async (req, res) => {
       [
         newMultiplier,
         JSON.stringify({ keeperAngleId, isGoal }),
-        user.id,
+        telegramId,
       ]
     );
 
-    return res.json({
+    res.json({
       success: true,
       keeperAngleId,
       isGoal,
@@ -129,57 +112,46 @@ router.post("/shoot", async (req, res) => {
     });
   } catch (err) {
     console.error("shoot error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// ====================== CASHOUT ======================
+// --- Cashout ---
 router.post("/cashout", async (req, res) => {
   try {
     const { initData } = req.body;
     const telegramId = extractTelegramId(initData);
 
     if (!telegramId)
-      return res.status(400).json({ success: false, message: "Invalid initData" });
-
-    const user = await getDbUser(telegramId);
-    if (!user)
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res.status(400).json({ message: "Invalid initData" });
 
     const gameRes = await pool.query(
-      `SELECT * FROM games WHERE user_id=$1`,
-      [user.id]
+      "SELECT stake, multiplier FROM games WHERE user_id=$1",
+      [telegramId]
     );
     const game = gameRes.rows[0];
-
     if (!game)
-      return res.status(400).json({ success: false, message: "Game not found" });
+      return res.status(404).json({ message: "Game not found" });
 
     if (game.multiplier === 1.0)
-      return res.status(400).json({ success: false, message: "Немає виграшу" });
+      return res.status(400).json({ message: "Немає виграшу" });
 
     const winnings = Math.floor(game.stake * game.multiplier);
 
     await pool.query(
-      `UPDATE users SET balance=balance+$1 WHERE telegram_id=$2`,
+      "UPDATE users SET balance = balance + $1 WHERE telegram_id=$2",
       [winnings, telegramId]
     );
 
     await pool.query(
-      `UPDATE games
-       SET multiplier=1.0, last_result=NULL, updated_at=NOW()
-       WHERE user_id=$1`,
-      [user.id]
+      `UPDATE games SET multiplier=1.0, last_result=NULL WHERE user_id=$1`,
+      [telegramId]
     );
 
-    return res.json({
-      success: true,
-      winnings,
-      balance: user.balance + winnings,
-    });
+    res.json({ success: true, winnings });
   } catch (err) {
     console.error("cashout error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
