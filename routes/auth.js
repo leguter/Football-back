@@ -100,6 +100,7 @@ router.post("/", async (req, res) => {
       );
     }
 
+    
     const finalUser = userResult.rows[0];
 
     // --- 5. Генерація JWT ---
