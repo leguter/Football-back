@@ -178,51 +178,76 @@ router.post("/complete", authMiddleware, async (req, res) => {
 // ==============================
 // 💸 Вивід зірок
 // ==============================
-// router.post("/withdraw", async (req, res) => {
-//   try {
-//     const { telegramId } = req.user;
-//     const { amount } = req.body;
+router.post("/withdraw", async (req, res) => {
+  try {
+    const { telegramId } = req.user;
+    const { amount } = req.body;
 
-//     if (!amount || amount <= 0)
-//       return res.status(400).json({ success: false, message: "Invalid amount" });
+    if (!amount || amount <= 0)
+      return res.status(400).json({ success: false, message: "Invalid amount" });
 
-//     const userRes = await db.query(
-//       "SELECT balance FROM users WHERE telegram_id = $1",
-//       [telegramId]
-//     );
-//     const currentBalance = userRes.rows[0]?.balance || 0;
+    const userRes = await db.query(
+      "SELECT balance FROM users WHERE telegram_id = $1",
+      [telegramId]
+    );
+    const currentBalance = userRes.rows[0]?.balance || 0;
 
-//     if (currentBalance < amount)
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Недостатньо зірок для виводу" });
+    if (currentBalance < amount)
+      return res.status(400).json({
+        success: false,
+        message: "Недостатньо зірок для виводу",
+      });
 
-//     // Створюємо заявку на вивід
-//     await db.query(
-//       "INSERT INTO withdrawals (telegram_id, amount, status) VALUES ($1, $2, $3)",
-//       [telegramId, amount, "pending"]
-//     );
+    const botToken = process.env.BOT_TOKEN;
+    const managerUsername = process.env.MANAGER_USERNAME || "StarcManager";
 
-//     // Зменшуємо баланс
-//     const updateRes = await db.query(
-//       "UPDATE users SET balance = balance - $1 WHERE telegram_id = $2 RETURNING internal_stars",
-//       [amount, telegramId]
-//     );
+    // Генеруємо номер замовлення
+    const orderId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-//     const newBalance = updateRes.rows[0].balance;
+    // Зберігаємо заявку у базу
+    await db.query(
+      "INSERT INTO withdrawals (telegram_id, amount, status, order_id) VALUES ($1,$2,$3,$4)",
+      [telegramId, amount, "pending", orderId]
+    );
 
-//     // Повідомлення користувачу
-//     const botToken = process.env.BOT_TOKEN;
-//     await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-//       chat_id: telegramId,
-//       text: `💸 Ваш запит на вивід ${amount}⭐ отримано! Очікуйте підтвердження.`,
-//     });
+    // Списуємо баланс
+    const updateRes = await db.query(
+      "UPDATE users SET balance=balance-$1 WHERE telegram_id=$2 RETURNING balance",
+      [amount, telegramId]
+    );
+    const newBalance = updateRes.rows[0].balance;
 
-//     res.json({ success: true, balance: newBalance });
-//   } catch (err) {
-//     console.error("Withdraw error:", err.response?.data || err.message);
-//     res.status(500).json({ success: false, message: "Server error" });
-//   }
-// });
+    // Формуємо повідомлення
+    const text = `
+💸 <b>Запит на вивід відправлено!</b>
+
+💎 Ви виводите: <b>${amount}⭐</b>
+📦 Номер замовлення: <code>${orderId}</code>
+🪙 Продукт: Вивід зірок⭐
+
+Для отримання виплати, зверніться до менеджера 👇
+    `;
+
+    const managerUrl = `https://t.me/${managerUsername}?start=withdraw_${orderId}`;
+
+    // Надсилаємо повідомлення з кнопкою
+    await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      chat_id: telegramId,
+      text,
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💬 Написати менеджеру", url: managerUrl }]
+        ]
+      }
+    });
+
+    res.json({ success: true, balance: newBalance });
+  } catch (err) {
+    console.error("Withdraw error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 
 module.exports = router;
