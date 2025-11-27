@@ -79,7 +79,10 @@ router.post("/shoot", async (req, res) => {
     if (!game)
       return res.status(404).json({ message: "Game not found" });
 
+    const stake = parseInt(game.stake);
     const currentMult = parseFloat(game.multiplier);
+
+    // 📌 Чим більший множник — тим більше шанс сейву (до 90%)
     const guessChance = Math.min(0.35 + (currentMult - 1.0) * 0.12, 0.9);
     const willGuess = Math.random() < guessChance;
 
@@ -93,6 +96,19 @@ router.post("/shoot", async (req, res) => {
       ? +(currentMult + (0.4 + Math.random() * 0.3)).toFixed(2)
       : 1.0;
 
+    // 📌 Запис в історію (до оновлення множника)
+    await pool.query(
+      `INSERT INTO game_history (telegram_id, type, amount, multiplier)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        telegramId,
+        isGoal ? "Win" : "Loss",
+        isGoal ? 0 : -stake,
+        currentMult
+      ]
+    );
+
+    // 📌 Оновлюємо поточну гру
     await pool.query(
       `UPDATE games
        SET multiplier=$1, last_result=$2, updated_at=NOW()
@@ -110,11 +126,13 @@ router.post("/shoot", async (req, res) => {
       isGoal,
       multiplier: newMultiplier,
     });
+
   } catch (err) {
     console.error("shoot error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 // --- Cashout ---
 router.post("/cashout", async (req, res) => {
@@ -133,24 +151,67 @@ router.post("/cashout", async (req, res) => {
     if (!game)
       return res.status(404).json({ message: "Game not found" });
 
-    if (game.multiplier === 1.0)
+    const stake = parseInt(game.stake);
+    const currentMult = parseFloat(game.multiplier);
+
+    if (currentMult === 1.0)
       return res.status(400).json({ message: "Немає виграшу" });
 
-    const winnings = Math.floor(game.stake * game.multiplier);
+    const winnings = Math.floor(stake * currentMult);
 
+    // 📌 Додаємо виграш гравцю
     await pool.query(
       "UPDATE users SET balance = balance + $1 WHERE telegram_id=$2",
       [winnings, telegramId]
     );
 
+    // 📌 Записуємо Cashout в історію
     await pool.query(
-      `UPDATE games SET multiplier=1.0, last_result=NULL WHERE user_id=$1`,
+      `INSERT INTO game_history (telegram_id, type, amount, multiplier)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        telegramId,
+        "Cashout",
+        winnings,
+        currentMult
+      ]
+    );
+
+    // 📌 Скидаємо множник у грі
+    await pool.query(
+      `UPDATE games
+       SET multiplier = 1.0, last_result = NULL, updated_at = NOW()
+       WHERE user_id = $1`,
       [telegramId]
     );
 
     res.json({ success: true, winnings });
+
   } catch (err) {
     console.error("cashout error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/history", async (req, res) => {
+  try {
+    const { initData } = req.body;
+    const telegramId = extractTelegramId(initData);
+
+    if (!telegramId) return res.status(400).json({ message: "Invalid initData" });
+
+    const result = await pool.query(
+      `SELECT type, amount, multiplier, created_at
+       FROM game_history
+       WHERE telegram_id=$1
+       ORDER BY id DESC
+       LIMIT 50`,
+      [telegramId]
+    );
+
+    res.json({ success: true, history: result.rows });
+  } catch (err) {
+    console.error("history error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
