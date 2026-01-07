@@ -48,34 +48,48 @@ router.post("/", async (req, res) => {
     }
 
     // --- 4. Робота з користувачем ---
-    const user = JSON.parse(urlParams.get("user"));
-    const telegramId = user.id;
+    // ... після валідації hash
 
-    let userResult = await db.query("SELECT * FROM users WHERE telegram_id = $1", [telegramId]);
+// 4. Робота з користувачем
+const userString = urlParams.get("user");
+if (!userString) {
+  return res.status(400).json({ message: "User data missing in initData" });
+}
 
-    if (userResult.rows.length === 0) {
-      // Новий користувач
-      const client = await db.connect();
-      try {
-        await client.query("BEGIN");
+const user = JSON.parse(userString);
+const telegramId = user.id;
 
-        const newUserQuery = `
-          INSERT INTO users 
-          (telegram_id, first_name, username, balance, photo_url, tickets, referred_by, internal_stars, referral_spins)
-          VALUES ($1, $2, $3, 0, $4, $5, $6, 0, 0)
-          RETURNING *`;
+// Використовуємо змінні з дефолтними значеннями, щоб уникнути undefined
+const firstName = user.first_name || 'User';
+const username = user.username || null; // Важливо для тих, у кого немає @username
+const photoUrl = user.photo_url || null;
 
-        const newUserValues = [
-          telegramId,
-          user.first_name,
-          user.username,
-          user.photo_url || null,
-          referrerId ? 2 : 0, // Бонусні квитки за реферала
-          referrerId || null, // Зберігаємо реферера
-        ];
+let userResult = await db.query("SELECT * FROM users WHERE telegram_id = $1", [telegramId]);
 
-        const newUserResult = await client.query(newUserQuery, newUserValues);
-        userResult = newUserResult;
+if (userResult.rows.length === 0) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+
+    const newUserQuery = `
+      INSERT INTO users 
+      (telegram_id, first_name, username, balance, photo_url, tickets, referred_by, internal_stars, referral_spins)
+      VALUES ($1, $2, $3, 0, $4, $5, $6, 0, 0)
+      RETURNING *`;
+
+    const newUserValues = [
+      telegramId,
+      firstName,
+      username, // Тепер тут точно або рядок, або null
+      photoUrl,
+      referrerId ? 2 : 0,
+      referrerId || null,
+    ];
+
+    const newUserResult = await client.query(newUserQuery, newUserValues);
+    userResult = newUserResult;
+    
+    // ... решта логіки з рефералом
 
         // Нарахування бонусу рефереру
         if (referrerId) {
