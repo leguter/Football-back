@@ -83,18 +83,41 @@ router.post("/shoot", async (req, res) => {
     const currentMult = parseFloat(game.multiplier);
 
     // 📌 Чим більший множник — тим більше шанс сейву (до 90%)
-    const guessChance = Math.min(0.35 + (currentMult - 1.0) * 0.12, 0.9);
-    const willGuess = Math.random() < guessChance;
+    // const guessChance = Math.min(0.35 + (currentMult - 1.0) * 0.12, 0.9);
+    // const willGuess = Math.random() < guessChance;
 
-    const keeperAngleId = willGuess
-      ? angleId
-      : Math.ceil(Math.random() * 5);
+    // const keeperAngleId = willGuess
+    //   ? angleId
+    //   : Math.ceil(Math.random() * 5);
 
-    const isGoal = keeperAngleId !== angleId;
+    // const isGoal = keeperAngleId !== angleId;
 
-    const newMultiplier = isGoal
-      ? +(currentMult + (0.4 + Math.random() * 0.3)).toFixed(2)
-      : 1.0;
+    // const newMultiplier = isGoal
+    //   ? +(currentMult + (0.4 + Math.random() * 0.3)).toFixed(2)
+    //   : 1.0;
+let guessChance;
+
+// Перевірка, чи це перший удар
+if (currentMult === 1.0) {
+  // Перший удар: шанс воротаря = 65%, тобто шанс голу = 35%
+  guessChance = 0.65;
+} else {
+  // Наступні удари: подвоюємо шанс воротаря
+  guessChance = Math.min(0.35 + (currentMult - 1.0) * 0.12, 0.9) * 2;
+  if (guessChance > 0.9) guessChance = 0.9; // максимум 90%
+}
+
+const willGuess = Math.random() < guessChance;
+
+const keeperAngleId = willGuess
+  ? angleId
+  : Math.ceil(Math.random() * 5);
+
+const isGoal = keeperAngleId !== angleId;
+
+const newMultiplier = isGoal
+  ? +(currentMult + (0.4 + Math.random() * 0.3)).toFixed(2)
+  : 1.0;
 
     // 📌 Запис в історію (до оновлення множника)
     await pool.query(
